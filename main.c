@@ -17,7 +17,8 @@ void main (void) {
 	i2c_init();
 	uart_init();
 
-	sei();
+	i2c_start();
+	i2c_get_status();
 
 	while (1) {
 
