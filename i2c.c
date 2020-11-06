@@ -61,47 +61,60 @@ inline void i2c_start() {
 
 inline void i2c_stop() {
 	TWCR |= (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); //Enables TWI Stop Condition Bit
-	await_completion;
+	while ((TWCR & (1 << TWSTO)));
 }
 
 inline uint8_t i2c_get_status(void) {
-	i2c_meaningful_status(TWSR);
+	return ((TWSR & 0xF8));
 }
 
 inline void i2c_xmit_addr(uint8_t adress, uint8_t rw) {
-	TWDR = adress + rw;
+	TWDR = adress | rw;
 	TWCR = (1 << TWINT) | (1 << TWEN);
 	await_completion;
 }
 
 inline void i2c_xmit_byte(uint8_t data) {
 	TWDR = data;
-	TWCR = (1<<TWINT)|(1<<TWEN);
+	TWCR = (1 << TWINT)|(1 << TWEN);
 	await_completion; 
 }
 
 inline uint8_t i2c_read_ACK() {
-	i2c_start();
-	i2c_xmit_addr(0x10, I2C_R);
-	TWCR = (1 << TWINT) | (1 << TWEN) | (1<<TWEA);
+	TWCR = (1 << TWINT) | (1 << TWEA) | (1 << TWEN);
 	await_completion;
 	return TWDR;
 }
 
 inline uint8_t i2c_read_NAK() {
-	i2c_start();
-	i2c_xmit_addr(0x10, I2C_R);
 	TWCR = (1 << TWINT) | (1 << TWEN);
 	await_completion;
 	return TWDR;
 }
 
 inline void eeprom_wait_until_write_complete() {
-	// ...
+	while (i2c_get_status() != 0x18) {
+		i2c_start();
+		i2c_xmit_addr(0b10100000,I2C_W);
+	}
 }
 
 uint8_t eeprom_read_byte(uint8_t addr) {
+	i2c_start();
+	i2c_xmit_addr(0b10100000,I2C_W);
+	i2c_xmit_byte(addr);
+	i2c_start();
+	i2c_xmit_addr(0b10100000,I2C_R);
+	uint8_t byteToRead;
+	byteToRead = i2c_read_NAK();
+	i2c_stop();
+	return byteToRead;
 }
 
 void eeprom_write_byte(uint8_t addr, uint8_t data) {
+	i2c_start();
+	i2c_xmit_addr(0b10100000,I2C_W);
+	i2c_xmit_byte(addr);
+	i2c_xmit_byte(data);
+	i2c_stop();
 }
